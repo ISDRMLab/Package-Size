@@ -306,3 +306,9 @@ void ImgRestore::imageRestoreAndEnhance(const string name)
 	this->pImpl->doAffineTransform();
 	this->pImpl->dstImageEnhance();
 }
+
+Mat & ImgRestore::getDstMat()
+{
+	// TODO: 在此处插入 return 语句
+	return this->pImpl->dstImage;
+}

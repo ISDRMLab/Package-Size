@@ -49,6 +49,8 @@ public:
 	ImgRestore& operator=(ImgRestore other);
 	~ImgRestore();
 	void imageRestoreAndEnhance(const string name);//图像还原和增强
+
+	Mat& getDstMat();
 	 
 private:
 	struct Ximpl;
