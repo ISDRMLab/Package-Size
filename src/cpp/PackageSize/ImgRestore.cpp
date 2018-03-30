@@ -21,10 +21,11 @@ struct ImgRestore::Ximpl
 	void loadImage(const string& name);//¼ÓÔØÍ¼Ïñ
 	void doEdgeDetect();//±ßÔµÌáÈ¡
 	void doFindcontours();//ÂÖÀªÌáÈ¡
+	void drawPerpectivePoints();//»­Í¸Éä±ä»»µÄËÄ¸öµã
 	void doAffineTransform();//Í¸ÊÓ±ä»»
-	void dstImageEnhance();
+	void dstImageEnhance();//Í¼Ç¿ÔöÇ¿
  
-	//Í¼Ç¿ÔöÇ¿
+	
 };
 ImgRestore::ImgRestore() : pImpl(new Ximpl()) {}
 ImgRestore::ImgRestore(const ImgRestore& other) : pImpl(new Ximpl(*other.pImpl)) {}
@@ -38,6 +39,7 @@ ImgRestore::~ImgRestore()
 	delete pImpl;
 	pImpl = nullptr;
 }
+
 //Í¨¹ı(ÉèÖÃÉÏÏŞµÄ)±ßÔµÌáÈ¡µÃµ½ËÄ¸ö¶¥µã
 vector<Point> ImgRestore::Ximpl::pointsFilter(const vector<Point>& candidate)
 {
@@ -46,13 +48,16 @@ vector<Point> ImgRestore::Ximpl::pointsFilter(const vector<Point>& candidate)
 	for (auto i = candidates.begin(); i != candidates.end();)
 		for (auto j = filter.begin(); j != filter.end(); ++j)
 		{
-			if (abs((*i).x - (*j).x) < 5 && abs((*i).y - (*j).y) < 5 && abs((*i).x - (*j).x) > 0 && abs((*i).y - (*j).y) > 0)
+			//ÌŞ³ıÎŞĞ§µã ¾àÀëÌ«½üµÄµã
+			if (abs((*i).x - (*j).x) < 5 && abs((*i).y - (*j).y) < 5 && abs((*i).x - (*j).x) > 0 && abs((*i).y - (*j).y) > 0 )
 				i = filter.erase(i);
 			else
 				++i;
 		}
 	return filter;
 }
+
+//
 vector<Point> ImgRestore::Ximpl::axisSort(const vector<Vec4i>& lines)
 {
 	vector<Point> points(lines.size() * 2);//¸÷¸öÏß¶ÎµÄÆğÊ¼µã
@@ -63,21 +68,24 @@ vector<Point> ImgRestore::Ximpl::axisSort(const vector<Vec4i>& lines)
 		points[i * 2 + 1].x = lines[i][2];
 		points[i * 2 + 1].y = lines[i][3];
 	}
+
 	points = this->pointsFilter(points);//¶Ô×Ô¼º¹ıÂËÒ»´Î
-										/*for (auto i : points)
-										cout << i.x << " " << i.y << endl;*/
-	sort(points.begin(), points.end(), CmpDistanceToZero());
+	/*for (auto i : points)
+	cout << i.x << " " << i.y << endl;*/
+	sort(points.begin(), points.end(), CmpDistanceToZero());//¸ù¾İµ½Ô­µãµÄ¾àÀë´ÓĞ¡µ½´óÅÅÁĞ
 	return points;
 }
 void ImgRestore::Ximpl::doEdgeDetect()
 {
 	this->cannyThreshold = 80;
 	float factor = 2.5;
-	const int maxLinesNum = 20;//×î¶à¼ì²â³öµÄÖ±ÏßÌõÊı
+	const int maxLinesNum = 25;//×î¶à¼ì²â³öµÄÖ±ÏßÌõÊı
 	Canny(this->srcImage, this->midImage, this->cannyThreshold, this->cannyThreshold * factor);
 	threshold(this->midImage, this->midImage, 128, 255, THRESH_BINARY);
 	cvtColor(this->midImage, this->edgeDetect, CV_GRAY2RGB);
 	HoughLinesP(this->midImage, this->lines, 1, CV_PI / 180, 50, 100, 100);
+
+	
 	while (this->lines.size() >= maxLinesNum)
 	{
 		this->cannyThreshold += 2;
@@ -90,26 +98,35 @@ void ImgRestore::Ximpl::doEdgeDetect()
 	Canny(this->srcImage, this->midImage, this->cannyThreshold, this->cannyThreshold * factor);
 	threshold(this->midImage, this->midImage, 128, 255, THRESH_BINARY);
 	cvtColor(this->midImage, this->edgeDetect, CV_GRAY2RGB);
+
+	
+
 	HoughLinesP(this->midImage, this->lines, 1, CV_PI / 180, 50, 100, 100);
+
+
+
 	const int imageRow = this->midImage.rows;
 	const int imageCol = this->midImage.cols;
 	lines.erase(remove_if(lines.begin(), lines.end(), IsCloseToEdge()), lines.end());
 	for (size_t i = 0; i < this->lines.size(); i++)
 	{
 		Vec4i l = this->lines[i];
-		line(this->edgeDetect, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(186, 88, 255), 1, CV_AA);
+		line(this->edgeDetect, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 60, 255), 1, CV_AA);//»­Ö±Ïß
 	}
 	this->findCrossPoint(this->lines);
 	/*for (size_t i = 0; i < lines.size(); ++i)
 	cout << lines[i] << endl;*/
-	imshow("¡¾±ßÔµÌáÈ¡Ğ§¹ûÍ¼¡¿", this->edgeDetect);
+	imshow("±ßÔµÌáÈ¡Ğ§¹ûÍ¼", this->edgeDetect);
+
 }
-vector<Point> ImgRestore::Ximpl::findCrossPoint(const vector<Vec4i>& lines)//Í¨¹ıÖ±ÏßÕÒµã
+
+//Í¨¹ıÖ±ÏßÕÒµãÕÒµ½ËÄ¸ö¶¥µã
+vector<Point> ImgRestore::Ximpl::findCrossPoint(const vector<Vec4i>& lines)
 {
 	int rightTopFlag = 0;
 	int leftDownFlag = 0;
 	int diagLength = 0;//¶Ô½ÇÏß³¤¶È
-	vector<Point> temp = this->axisSort(lines);
+	vector<Point> temp = this->axisSort(lines);//¾àÀëÔ­µã ´ÓĞ¡µ½´ó
 	Point leftTop, rightDown;//×óÉÏºÍÓÒÏÂ¿ÉÒÔÖ±½ÓÅĞ¶Ï
 	vector<Point> rightTop(temp.size());
 	vector<Point> leftDown(temp.size());//×óÏÂºÍÓÒÉÏÓĞ¶à¸öµã¿ÉÄÜ·ûºÏ
@@ -158,7 +175,7 @@ vector<Point> ImgRestore::Ximpl::findCrossPoint(const vector<Vec4i>& lines)//Í¨¹
 	this->resultPointsByEdge.push_back(rightDown);
 	return this->resultPointsByEdge;
 }
-//Í¨¹ıÂÖÀªÌáÈ¡µÃµ½ËÄ¸ö¶¥µã
+//ÅÅĞò
 vector<Point> ImgRestore::Ximpl::axisSort(const vector<vector<Point>>& contours)
 {
 	vector<Point> points(contours.size() * contours[0].size());
@@ -198,10 +215,10 @@ vector<Point> ImgRestore::Ximpl::findCrossPoint(const vector<vector<Point>>& con
 	vector<Point> rightTop(temp.size());
 	vector<Point> leftDown(temp.size());//×óÏÂºÍÓÒÉÏÓĞ¶à¸öµã¿ÉÄÜ·ûºÏ
 	//¶ÔÕÕÆ¬¶øÑÔ£¬Ò»¶¨ÊÇ×óÉÏ½ÇÀëÔ­µã×î½ü£¬ÓÒÏÂ½ÇÀëÔ­µã×îÔ¶
-	leftTop.x = temp[0].x-5;
-	leftTop.y = temp[0].y-5;
-	rightDown.x = temp[temp.size() - 1].x+5;
-	rightDown.y = temp[temp.size() - 1].y+5;
+	leftTop.x = temp[0].x;
+	leftTop.y = temp[0].y;
+	rightDown.x = temp[temp.size() - 1].x;
+	rightDown.y = temp[temp.size() - 1].y;
 	for (auto & i : temp)
 		if (i.x > leftTop.x && i.y < rightDown.y)
 			rightTop.push_back(i);
@@ -238,13 +255,24 @@ vector<Point> ImgRestore::Ximpl::findCrossPoint(const vector<vector<Point>>& con
 }
 void ImgRestore::Ximpl::loadImage(const string& name)
 {
-	srcImage = imread(name, 1);
+	srcImage = imread(name);
+
 	if (!srcImage.data)
 	{
 		cout << "¶ÁÈ¡Í¼Æ¬´íÎó£¬ÇëÈ·¶¨Ä¿Â¼ÏÂÊÇ·ñÓĞimreadº¯ÊıÖ¸¶¨µÄÍ¼Æ¬´æÔÚ" << endl;
 	}
 	imshow(WINDOW_NAME1, this->srcImage);
 }
+
+void ImgRestore::Ximpl::drawPerpectivePoints()
+{
+	for (Point &point : this->resultPointsByEdge) {
+		circle(this->srcImage, point, 2, Scalar(0, 0, 255), 2);
+	}
+	imshow("Í¸Éä±ä»»µÄËÄ¸öµã[Ô­Í¼]", this->srcImage);
+	
+}
+
 void ImgRestore::Ximpl::doAffineTransform()
 {
 	this->doEdgeDetect();//·ÂÉä±ä»»Ç°ÏÈ±ßÔµ¡¢Ö±ÏßÌáÈ¡
@@ -261,19 +289,24 @@ void ImgRestore::Ximpl::doAffineTransform()
 	const int leftDownY = (this->resultPointsByEdge[2].y + this->resultPointsByEdge[2].y) / 2;
 	const int rightDownX = (this->resultPointsByEdge[3].x + this->resultPointsByEdge[3].x) / 2;
 	const int rightDownY = (this->resultPointsByEdge[3].y + this->resultPointsByEdge[3].y) / 2;
-	cout << leftTopX << " " << leftTopY << endl;
-	cout << rightTopX << " " << rightTopY << endl;
-	cout << leftDownX << " " << leftDownY << endl;
-	cout << rightDownX << " " << rightDownY << endl;
-	int newWidth = 0;
+	cout << "left top:"  << leftTopX  << " " << leftTopY << endl;
+	cout << "right top:" << rightTopX << " " << rightTopY << endl;
+	cout << "left down:" << leftDownX << " " << leftDownY << endl;
+	cout << "right down" <<rightDownX << " " << rightDownY << endl;
+
+	drawPerpectivePoints();//½«ÕâËÄ¸öµãÔÚÔ­Í¼ÖĞ»­³öÀ´
+
+	int newWidth = 0;//¿í¶È
 	int newHeight = 0;
 	newWidth = sqrt((leftTopX - rightTopX) * (leftTopX - rightTopX) + (leftTopY - rightTopY) * (leftTopY - rightTopY));
 	newHeight = sqrt((leftTopX - leftDownX) * (leftTopX - leftDownX) + (leftTopY - leftDownY) * (leftTopY - leftDownY));
-	this->dstImage = Mat::zeros(newHeight, newWidth, this->srcImage.type());
+	this->dstImage = Mat::zeros(newHeight, newWidth, this->srcImage.type());//¹¹½¨½á¹ûÍ¼Ïñ
+	//¹¹½¨Í¸Éä±ä»»¾ØÕó H
 	srcTriangle[0] = Point2f(leftTopX, leftTopY);
 	srcTriangle[1] = Point2f(rightTopX, rightTopY);
 	srcTriangle[2] = Point2f(leftDownX, leftDownY);
 	srcTriangle[3] = Point2f(rightDownX, rightDownY);
+
 	dstTriangle[0] = Point2f(0, 0);
 	dstTriangle[1] = Point2f(newWidth, 0);
 	dstTriangle[2] = Point2f(0, newHeight);
@@ -281,9 +314,9 @@ void ImgRestore::Ximpl::doAffineTransform()
 	Mat m1 = Mat(srcTriangle);
 	Mat m2 = Mat(dstTriangle);
 	Mat status;
-	Mat h = findHomography(m1, m2, status, 0, 3);
-	perspectiveTransform(srcTriangle, dstTriangle, h);
-	warpPerspective(this->srcImage, this->dstImage, h, this->dstImage.size());
+	Mat h = findHomography(m1, m2, status, 0, 3);//¹¹½¨H¾ØÕó
+	perspectiveTransform(srcTriangle, dstTriangle, h); //¶Ô¶şÎ¬»òÕßÈıÎ¬Ê¸Á¿½øĞĞÍ¸Éä±ä»»
+	warpPerspective(this->srcImage, this->dstImage, h, this->dstImage.size());//¶ÔÍ¼Ïñ½øĞĞÍ¸Éä±ä»»
 	imshow(WINDOW_NAME2, this->dstImage);
 	imwrite("result.jpg", this->dstImage);
  

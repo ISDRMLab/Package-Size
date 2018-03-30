@@ -17,8 +17,10 @@ using namespace std;
 #define WINDOW_NAME2 "【经过Warp后的图像】"        
 #define WINDOW_NAME3 "【再经过增强后的图像】" 
 
+//定义三个函数对象 IsCloseToEdge  CmpContoursSize CmpDistanceToZero
 
-struct IsCloseToEdge
+
+struct IsCloseToEdge //是否距离边界
 {
 	bool operator()(Vec4i line)
 	{
@@ -33,13 +35,15 @@ struct CmpContoursSize//轮廓大小排序
 		return lhs.size() > rhs.size();
 	}
 };
-struct CmpDistanceToZero//各个点到原点距离
+struct CmpDistanceToZero//各个点到原点距离 街区距离
 {
 	bool operator()(const Point& lhs, const Point& rhs) const
 	{
 		return lhs.x + lhs.y < rhs.x + rhs.y;
 	}
 };
+
+
 class ImgRestore
 {
 public:

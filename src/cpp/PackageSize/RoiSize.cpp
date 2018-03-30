@@ -22,12 +22,9 @@ void RoiSize::doing()
 	imshow("canny", cannyMat);
 
 	//形态学操作
-
-	//检索连通域
-	Mat se = getStructuringElement(MORPH_RECT, Size(3, 3));
+	//Mat se = getStructuringElement(MORPH_RECT, Size(3, 3));
 	//morphologyEx(cannyMat, cannyMat, MORPH_DILATE, se);
 	//imshow("morphologyEx", cannyMat);
-
 
 
 	//寻找轮廓
@@ -36,8 +33,6 @@ void RoiSize::doing()
 	findContours(cannyMat, contours, hierarchy, RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
 	//cout << "contours couts is" << contours.size() << endl;
-
-	vector<Rect> boundRect(contours.size());
 
 	for (int k = 0; k < contours.size(); k++)
 	{
@@ -49,18 +44,17 @@ void RoiSize::doing()
 		//0.8--1.2之间的鲁棒
 		if (bomen.width >= 5 && bomen.height >= 5 && contours[k].size() >= 10) {
 			if (abs(whrate - 1) <= 0.1) {
-				drawContours(srcMat, contours, k, Scalar(0, 0, 255), CV_FILLED, 8, hierarchy);
+				drawContours(srcMat, contours, k, Scalar(0, 0, 255), 0, 8, hierarchy);
 				getROISize(contours[k]);
 				//rectangle(srcMat, bomen, Scalar(255, 0, 0), 1, 8, 0);
 			}
 		}
-
 	}
 
 
 	//drawContours(srcMat, contours, -1, Scalar(0,0,255), 1);
 
-	imshow("result22", srcMat);
+	imshow("mark region", srcMat);
 
 	
 	
@@ -81,8 +75,9 @@ void RoiSize::getROISize(vector<Point> &contour)
 
 void RoiSize::printSizeInfo() 
 {
-	double realWidth = srcMat.cols / m_MarkerWidth * 3;//cm
-	double realHeight = srcMat.rows / m_MarkerHeight * 3;//cm
+	double markerLine = (m_MarkerWidth + m_MarkerHeight) / 2;
+	double realWidth = srcMat.cols / markerLine * 3;//cm
+	double realHeight = srcMat.rows / markerLine * 3;//cm
 
 	cout << "marker pixel\n" << "width:" << m_MarkerWidth  << "height:" << m_MarkerHeight << endl;
 	cout << "box pixel\n" << "width:" << srcMat.cols << "height:" << srcMat.rows << endl;
